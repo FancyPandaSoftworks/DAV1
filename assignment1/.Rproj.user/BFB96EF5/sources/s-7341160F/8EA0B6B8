@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1573861196177.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1959002369",
+    "id" : "8EA0B6B8",
+    "lastKnownWriteTime" : 1574651189,
+    "last_content_update" : 1574651189292,
+    "path" : "~/Uni stuff/Master/Data analysis and visualization/Assignment1/assignment1/assignment1.R",
+    "project_path" : "assignment1.R",
+    "properties" : {
+        "cursorPosition" : "144,55",
+        "scrollLine" : "112",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

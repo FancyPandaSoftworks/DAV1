@@ -1,0 +1,7 @@
+"0","picked <- myData %>% "
+"0","  select(t1_champ1id, t1_champ2id, t1_champ3id, t1_champ4id, t1_champ5id, t2_champ1id, t2_champ2id, t2_champ3id, t2_champ4id, t2_champ5id) %>% "
+"0","  gather(key, character) %>% "
+"0","  select(character) %>% "
+"0","  group_by(character) %>%"
+"0","  summarise(totalNumbers = n())"
+"0","ggplot(picked, aes(character, totalNumbers)) + geom_bar(stat = ""identity"", aes(fill = character)) + theme(legend.position = ""none"") + coord_flip()"

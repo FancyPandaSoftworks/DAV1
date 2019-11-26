@@ -1,0 +1,276 @@
+---
+title: "Assignment1"
+author: "Oscar Hsieh"
+date: "November 15, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r echo = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(nnet)
+library(caTools)
+library(caret)
+library(corrplot)
+```
+
+###About the data
+The data is from 51490 games from a game called League of Legends. Even though there are more than 61 variables, most of them have similar attributes (For example t1_ban1, t1_ban2 and t1_ban3 are variables that ban a certain character in that order). Each row includes the winning team, and which objectives were taken during the game.  
+
+This dataset was collected using the Riot Games API, which makes it easy to lookup and collect information on a users ranked history and collect their games. 
+
+```{r}
+myData <- read.csv("games.csv")
+head(myData)
+```
+
+
+
+###Cleaning and preprocessing data
+
+First of all, we change the types of the variable to the right type. Then, we changed 1 and 2 into team 1 and team 2 when necessary. Lastly, a column can be removed since it is not relevant at all. 
+
+```{r}
+###Converting the variables into the right types
+myData <- myData %>% mutate_at(vars(1, 4:26, 32:51, 57:61), as.character)
+
+###Replace 1 and 2 with team 1 and team 2
+myData <- myData %>% mutate(winner = replace(winner, winner ==1,"team 1"),
+                  firstBlood = replace(firstBlood, firstBlood ==1,"team 1"),
+                  firstTower = replace(firstTower, firstTower ==1,"team 1"),
+                  firstInhibitor = replace(firstInhibitor, firstInhibitor ==1,"team 1"),
+                  firstBaron = replace(firstBaron, firstBaron ==1,"team 1"), 
+                  firstDragon = replace(firstDragon, firstDragon ==1,"team 1"),
+                  winner = replace(winner, winner ==2,"team 2"),
+                  firstBlood = replace(firstBlood, firstBlood ==2,"team 2"),
+                  firstTower = replace(firstTower, firstTower ==2,"team 2"),
+                  firstInhibitor = replace(firstInhibitor, firstInhibitor ==2,"team 2"),
+                  firstBaron = replace(firstBaron, firstBaron ==2,"team 2"), 
+                  firstDragon = replace(firstDragon, firstDragon ==2,"team 2")) %>% 
+  mutate_at(vars(1, 4:26, 32:51, 57:61), as.factor)
+
+###Dropping unncessary column(s)
+myData <- myData %>% select(-2)
+
+head(myData)
+``` 
+Let's do a summary on this data so we know what to expect from the variables: 
+
+```{r}
+summary(myData)
+```
+As the data summary shows, the season variable only has one value (and not really relevant), so we can remove this variable from this dataset. 
+```{r}
+myData <- myData %>% 
+  select(-3)
+```
+
+
+
+##Analysis
+
+
+###Win rate of the teams
+First of all, let's see the win rate of the teams: Team 1 is blue side, while team 2 is red side.
+Looking at the graph, it seems like team 1 has won more games, but not by a huge margin. 
+
+```{r}
+ggplot(data = myData, aes(x = winner, fill = winner)) + 
+  geom_bar() + 
+  scale_fill_manual(values=c("blue", "red"))
+
+winners <- myData %>%
+  count(winner) %>%
+  mutate(winPercentage = prop.table(n))
+winners
+
+```
+The table shows that the winning percentage has around 1% difference, this means that on a specific side won't win you more games.
+
+
+###Taking down the first turret
+Next, let's see the impact of taking the first turret of the game and how that influences the win rate:
+
+
+```{r}
+ggplot(data = myData, aes(x = firstTower, fill = winner)) + 
+  geom_bar() + 
+  scale_fill_manual(values=c("blue", "red"))
+```
+
+It seems like taking turret has quite an impact on winning the game. Though, it makes sense since it is a rare case that a losing team takes first turret, so the team already has an advantage before taking the turret. 
+
+The 0 turret means an early surrender. Often, this happens when someone doesn't properly connect to the game and the game is disbanded. 
+
+
+###Characters picked and banned
+There are a lot of characters in the game(more than 130), so let's see how many times the characters are actually picked, and how many times a character is actually banned(due to being overpowered or players simply hating the character)
+
+```{r}
+picked <- myData %>% 
+  select(t1_champ1id, t1_champ2id, t1_champ3id, t1_champ4id, t1_champ5id, t2_champ1id, t2_champ2id, t2_champ3id, t2_champ4id, t2_champ5id) %>% 
+  gather(key, character) %>% 
+  select(character) %>% 
+  group_by(character) %>%
+  summarise(totalNumbers = n())
+
+ggplot(picked, aes(character, totalNumbers)) + geom_bar(stat = "identity", aes(fill = character)) + theme(legend.position = "none") + coord_flip()
+
+bans <- myData %>% 
+  select(t1_ban1, t1_ban2, t1_ban3, t1_ban4, t1_ban5, t2_ban1, t2_ban2, t2_ban3, t2_ban4, t2_ban5) %>% 
+  gather(key, ban) %>% 
+  select(ban) %>% 
+  group_by(ban) %>%
+  summarise(banNumbers = n()) %>%
+  filter(ban>0)
+
+ggplot(bans, aes(ban, banNumbers)) + geom_bar(stat = "identity", aes(fill = ban)) + theme(legend.position = "none") + coord_flip()
+
+```
+I removed the -1 from the ban data, since it means that the player didn't ban a champ for whatever reason. This is however, not relevant in this analysis. 
+
+According to the graph, there is a huge variability at banning and picking characters. 
+First of all, some characters are picked with a relatively high percentage compared to the ban of the character, and vice versa. To know whether the same characters happen to be in the top list of the pick list and the ban list, we compare the top 15(Around 10%) characters and see if there are any similarities. 
+
+```{r}
+
+
+topPicked <- picked %>% 
+  arrange(desc(totalNumbers)) %>% 
+  top_n(15) %>% 
+  arrange(character)
+
+topBans <- bans %>% 
+  arrange(desc(banNumbers)) %>% 
+  top_n(15) %>% 
+  arrange(ban) 
+
+
+cbind(topPicked, topBans) %>%
+  filter(character %in% ban) %>% 
+  select(character)
+```
+
+The result shows that out of the 15 top picked and banned characters, there are 6 characters that occur in both lists. This means that players know that which characters are strong and when left unbanned, these characters will be picked by the players. 
+
+
+
+###Win rate per champion
+Next, let's see if the characters have a different win ratio. 
+But before we analyze it, we need to transform the dataset since the crucial information isn't shown on the original data like black and white.
+
+First of all, we divide the dataset into team 1 and team 2 with their corresponding characters for each match. Also, we assign the result of the match with the corresponding row. 
+
+Then, we combine the two datasets and group the characters with the same ID so we can see how many times the character lost or won.
+Finally, dividing the number of times the character won by the total times played, we have the winning percentage of the characters. 
+
+```{r}
+team1Win <- myData %>% 
+  ###Get the players of the team and which team won for team 1
+  select(winner, t1_champ1id, t1_champ2id, t1_champ3id, t1_champ4id, t1_champ5id) %>% 
+  ###Change the variable to whether the team won or lost
+  mutate(winner = case_when(winner == "team 1"~ 1, 
+                            winner == "team 2" ~ 0, 
+                            TRUE ~ 2)) %>% 
+  ###Rename the variables so we can combine rows later
+  rename(champ1id = t1_champ1id, champ2id = t1_champ2id, champ3id = t1_champ3id, champ4id = t1_champ4id, champ5id = t1_champ5id)
+
+
+team2Win <- myData %>% 
+  ###Get the players of the team and which team won for team 2
+  select(winner, t2_champ1id, t2_champ2id, t2_champ3id, t2_champ4id, t2_champ5id) %>% 
+  ###Change the variable to whether the team won or lost
+  mutate(winner = case_when(winner == "team 1"~ 0, 
+                            winner == "team 2" ~ 1, 
+                            TRUE ~ 2)) %>% 
+  ###Rename the variables so we can combine rows later
+  rename(champ1id = t2_champ1id, champ2id = t2_champ2id, champ3id = t2_champ3id, champ4id = t2_champ4id, champ5id = t2_champ5id)
+
+champWin <- bind_rows(team1Win, team2Win)
+
+
+
+###Get frequency
+champStats <- champWin %>% 
+  group_by(champ1id, winner) %>%
+  tally() %>%
+  ###Get the total number of games played for each character
+  group_by(champ1id) %>%
+  mutate(total = sum(n))%>%
+  ###Get the winning percentage
+  mutate(percentage = n/total * 100) %>% 
+  filter(winner == 1) %>%
+  mutate(totalMean = case_when(total>746 ~1,
+                               total<=746~0,
+                               TRUE ~2)) %>% 
+  mutate_at(6, as.character)
+  
+ggplot(data = champStats, aes(x = champ1id, y = percentage, colour = total)) + geom_point(size = 3) +
+  scale_colour_gradient(low = "blue", high = "red") 
+
+```
+
+As the results show, there is a relatively huge difference between the characters, with the lowest less than 40% and the highest above 56%. This shows that the characters are not entirely balanced, since you would expect that niche characters would be played more by one trick ponies and hence knowing the characters better, but according to this graph there are characters played by the majority and still somehow making it above the 50%. 
+
+Do characters that occur more frequently have a higher percentage of winning the game? Looking at the graphs, I doubt it. 
+
+###First blood
+First blood means the first team killing an enemy character. By filling in the which team is winning in the first blood bar plot we can see how first blood affects the game.
+
+```{r}
+ggplot(data = myData, aes(x = firstBlood, fill = winner)) + 
+  geom_bar() + 
+  scale_fill_manual(values=c("blue", "red"))
+```
+
+Even though first blood gives a team an advantage, it seems like it isn't big enough to get a greater lead. One of the reasons I can think of is due to the fact that the game has implemented some elements that stop games from snowballing too drastically, so teams are able to come back even when they are sightly behind. 
+
+
+###Taking down one of the biggest objective: Baron
+In this game, an objective called "Baron" increases the power of the team that takes it. We want to know the advantage baron gives to the team. 
+We create a jitter plot to see which team wins when the baron is taken by a certain team:
+```{r}
+ggplot(myData, aes(x =gameDuration, y = t1_baronKills , colour = winner)) +geom_jitter() + 
+  scale_color_manual(values=c("blue", "red"))
+
+ggplot(myData, aes(x =gameDuration, y = t2_baronKills , colour = winner)) +geom_jitter() + 
+  scale_color_manual(values=c("blue", "red"))
+```
+
+As expected, both team 1 and team 2 have similar results. At 0 barons, both teams depend on other variables to win instead of the baron. It gets interesting however, at 1 or more barons. Both graphs show that taking barons will increase the chance of winning the game, especially at the early stages. However, the longer the game gets dragged, the higher the chance that the advantage fades away and the opposite team steals some games. At three barons, it is unpredictable who is going to be on top. My assumption on this is because both teams get more than one baron in this case and a lot of fighting is going on that has not much to do with winning the game. This is also referred as "Clown fiesta".
+
+So according to this graph, taking barons will increase the chance of winning, but you also need to end as soon as possible before the opposite team catches up. 
+
+
+###Summoners 
+Summoner spells are spells that players can choose freely before loading into the game. Let's see the times different summoner spells are taken to see which ones the players prefer the most: 
+
+```{r}
+summoners <- myData %>% 
+  select(t1_champ1_sum1, t1_champ1_sum2, t1_champ2_sum1, t1_champ1_sum2, t1_champ3_sum1, t1_champ3_sum2, t1_champ4_sum1, t1_champ4_sum2,
+         t1_champ5_sum1, t1_champ5_sum2, t2_champ1_sum1, t2_champ1_sum2, t2_champ2_sum1, t2_champ2_sum2, t2_champ3_sum1, t2_champ3_sum2,
+         t2_champ4_sum1, t2_champ4_sum2, t2_champ5_sum1, t2_champ5_sum2) %>% 
+  gather(key, champ_sum) %>% 
+  select(champ_sum) %>% 
+  group_by(champ_sum) %>%
+  summarise(totalNumbers = n())
+
+ggplot(summoners, aes(champ_sum, totalNumbers)) + geom_bar(stat = "identity", aes(fill = champ_sum))
+```
+As seen in the graph, the 4th summoner spell is the most picked by farm while other summoner spells are relatively equally picked. Since the balance team of the game doesn't buff or nerf it, it means that they think that this summoner spell is healthy for the game and hence they just let it be. 
+
+
+We want to convert the numbers into percentage so we know how often it is actually picked: 
+
+```{r}
+summoners %>% 
+  mutate(percentage = totalNumbers / sum(totalNumbers))
+```
+In the table, it shows that all the summoner spells are picked with a chance less than 11%, except summoner spell 4 with a 49% pick rate, surpassing every other summoner spell with at least 38%. This shows that in every game the summoner spell is picked if we account the fact that there are 10 players in one game with each a 49% pick rate. 
+
+

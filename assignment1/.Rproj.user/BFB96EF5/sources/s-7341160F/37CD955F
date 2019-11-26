@@ -1,0 +1,24 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1574088192588.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "37CD955F",
+    "lastKnownWriteTime" : 1574711596,
+    "last_content_update" : 1574711596775,
+    "path" : "~/Uni stuff/Master/Data analysis and visualization/Assignment1/assignment1/Assignment1.Rmd",
+    "project_path" : "Assignment1.Rmd",
+    "properties" : {
+        "cursorPosition" : "275,0",
+        "last_setup_crc32" : "7341160Fbb338d19",
+        "scrollLine" : "264",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 3,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_markdown"
+}

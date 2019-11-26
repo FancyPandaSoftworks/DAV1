@@ -1,0 +1,12 @@
+"0","topPicked <- picked %>% "
+"0","  arrange(desc(totalNumbers)) %>% "
+"0","  top_n(15) %>% "
+"0","  arrange(character)"
+"2","Selecting by totalNumbers
+"
+"0","topBans <- bans %>% "
+"0","  arrange(desc(banNumbers)) %>% "
+"0","  top_n(15) %>% "
+"0","  arrange(ban) "
+"2","Selecting by banNumbers
+"

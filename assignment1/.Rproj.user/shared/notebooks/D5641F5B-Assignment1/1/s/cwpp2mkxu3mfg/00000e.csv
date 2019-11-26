@@ -1,0 +1,2 @@
+"0","myData <- read.csv(""games.csv"")"
+"0","head(myData)"

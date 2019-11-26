@@ -1,0 +1,4 @@
+"0","winners <- myData %>%"
+"0","  count(winner) %>%"
+"0","  mutate(winPercentage = prop.table(n))"
+"0","winners"

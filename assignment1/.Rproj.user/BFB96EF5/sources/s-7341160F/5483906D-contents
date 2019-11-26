@@ -1,0 +1,103 @@
+---
+title: "Assignment 2"
+author: "Oscar Hsieh"
+date: "November 19, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r}
+###Converting the variables into the right types
+myData <- myData %>% mutate_at(vars(4:ncol(myData)), as.character)
+
+###Replace 1 and 2 with team 1 and team 2
+myData <- myData %>% mutate(winner = replace(winner, winner ==1,"team 1"),
+                  firstBlood = replace(firstBlood, firstBlood ==1,"team 1"),
+                  firstTower = replace(firstTower, firstTower ==1,"team 1"),
+                  firstInhibitor = replace(firstInhibitor, firstInhibitor ==1,"team 1"),
+                  firstBaron = replace(firstBaron, firstBaron ==1,"team 1"), 
+                  firstDragon = replace(firstDragon, firstDragon ==1,"team 1"),
+                  winner = replace(winner, winner ==2,"team 2"),
+                  firstBlood = replace(firstBlood, firstBlood ==2,"team 2"),
+                  firstTower = replace(firstTower, firstTower ==2,"team 2"),
+                  firstInhibitor = replace(firstInhibitor, firstInhibitor ==2,"team 2"),
+                  firstBaron = replace(firstBaron, firstBaron ==2,"team 2"), 
+                  firstDragon = replace(firstDragon, firstDragon ==2,"team 2"))
+
+###Dropping unncessary column(s)
+myData <- myData %>% select(-c(2, 4, 13, 14, 16, 17, 19, 20, 22, 23, 25, 26, 31:36, 38, 39, 41, 42, 44, 45, 47, 48, 50, 51, 56:61))
+
+head(myData)
+``` 
+
+###Prediction
+Next, we are going to make a prediction on which team wins based on the variables in the dataset. 
+
+At first, I wanted to use random forest, but since there are too many categorical variables, R needs to calculate 2^{1447 - 1} - 1 splits, which is computational too heavy for Random forest in R. 
+
+By using multinomial logistic regression, we can set the max weight in the parameter to prevent the model not able to handle all the weights. Even though it makes sense not to do it with a small dataset because nothing sensible will come out with only a limited observation. However, with more than 50k observations (More than 30k in training set when the split is set on 75/25 split) it is worth a try to see how well the model predicts. 
+```{r echo = FALSE}
+###Splitting the dataset
+sample <- sample.split(myData, SplitRatio = 0.75)
+
+###Obtain trainind and test data
+trainSet <- subset(myData, sample == TRUE)
+testSet <- subset(myData, sample == FALSE)
+
+###Set character as factor type for prediction model and remove the first variable since that ain't necessary
+trainSet <- trainSet %>% 
+  select(-c(1)) %>% 
+  mutate_at(vars(2:13, 18:22), as.factor) %>%
+  filter(t1_baronKills <5)
+
+###Same for test set 
+testSet <- testSet %>% 
+  select(-c(1)) %>% 
+  mutate_at(vars(2:13, 18:22), as.factor) %>%
+  filter(t1_baronKills <5)
+
+###Multinomial logistic regression
+logitModel <- multinom(winner ~., data = trainSet, MaxNWts = 1450)
+
+###Prediction result
+result <- predict(logitModel, testSet)
+
+```
+
+```{r}
+confusionMatrix(result, testSet$winner)
+```
+
+The accuracy of the predication is around 96%, which means it predicts the winning team quite well. Though, if there were researches done on this we would have a better bar to understand whether 96% is normal or truly higher than other prediction models. 
+
+In fact, 96% seems quite logical, just by looking at the variable firstTower: 
+```{r}
+ftWinrate <- multinom(winner ~ firstTower, data = trainSet)
+resultFt <- predict(ftWinrate, testSet)
+confusionMatrix(resultFt, testSet$winner)
+```
+It has an accuracy of 70% just based on this variable alone. This is not surprising since most of the variables, when taken, boost the team with different advantages such as map pressure, gold and setups. The only concern is how to weight the variables with each other but with all the classification models, this is barely a problem and hence, predicting winning and losing team is actually quite simple. 
+
+It actually would be more interesting whether it is possible to get a high accuracy just based on the team characters alone. If this is possible, I can then run this every time before the game starts and if I see the odds are not greatly in my favour, I will say goodbye to my team and dodge. 
+```{r}
+charTrain <- trainSet %>%
+  select(-c(1,3,4,5,6,7,8,14:17,23:26))
+
+charTest <- testSet %>%
+  select(-c(1,3,4,5,6,7,8,14:17,23:26))
+
+multiLogit <- multinom(winner ~., data = charTrain, MaxNWts = 1450)
+result <- predict(multiLogit, charTest)
+```
+```{r}
+confusionMatrix(result, charTest$winner)
+```
+
+
+
+So based on the characters alone, the model only predicts a few percentages higher than wild guessing. Even though the result is a bit lackluster, if we have more information about the players like win rate on the character, total times played etc. we may be able to have a better prediction, and maybe then, I can use the model to see which player will be the most likely to troll and makes me lose :). 
+
+
+

@@ -1,0 +1,2 @@
+"0","summoners %>% "
+"0","  mutate(percentage = totalNumbers / sum(totalNumbers))"

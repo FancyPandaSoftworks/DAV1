@@ -1,0 +1,3 @@
+"0","ggplot(data = myData, aes(x = firstBlood, fill = winner)) + "
+"0","  geom_bar() + "
+"0","  scale_fill_manual(values=c(""blue"", ""red""))"
